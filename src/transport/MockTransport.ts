@@ -29,8 +29,7 @@ export class MockTransport implements Transport {
 
   async read(): Promise<Uint8Array<ArrayBuffer>> {
     if (this.queue.length > 0) {
-      const popped = this.queue.pop()!;
-      console.log(this.#name, "read", popped);
+      const popped = this.queue.shift()!;
       return popped;
     }
 
@@ -40,12 +39,10 @@ export class MockTransport implements Transport {
 
     this.resolve = null;
 
-    console.log(this.#name, "read", result);
     return result;
   }
 
   async write(message: Uint8Array<ArrayBuffer>): Promise<void> {
-    console.log(this.#name, "wrote", message);
     return this.#send(message);
   }
 }

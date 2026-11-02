@@ -35,17 +35,25 @@ export class HandshakeState {
     await this.#symmetric.mixHash(prologue);
   }
 
+  isFinished() {
+    return this.#pattern.length === 0;
+  }
+
+  async split() {
+    const [cipher1, cipher2] = await this.#symmetric.split();
+    return this.#initiator ? [cipher1, cipher2] : [cipher2, cipher1];
+  }
+
   async writeMessage(payload: Uint8Array<ArrayBuffer>) {
     const tokens = this.#pattern.shift();
 
     if (!tokens) {
-      return this.#symmetric.split();
+      return this.split();
     }
 
     const buffer = new Buffer();
 
     for (const token of tokens) {
-      console.log("Write", token);
       switch (token) {
         case "e": {
           this.#ephemeralKeyPair = await generateKeyPair();
@@ -119,13 +127,12 @@ export class HandshakeState {
     const tokens = this.#pattern.shift();
 
     if (!tokens) {
-      return this.#symmetric.split();
+      return this.split();
     }
 
     const buffer = new Buffer(message);
 
     for (const token of tokens) {
-      console.log("Read", token);
       switch (token) {
         case "e": {
           const publicKey = buffer.read(DH_LENGTH);

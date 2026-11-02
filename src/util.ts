@@ -10,6 +10,10 @@ export function stringToBytes(str: string) {
   return new TextEncoder().encode(str);
 }
 
+export function bytesToString(bytes: Uint8Array) {
+  return new TextDecoder().decode(bytes);
+}
+
 export function concatBytes(a: Uint8Array, b: Uint8Array) {
   const merged = new Uint8Array(a.length + b.length);
   merged.set(a);
