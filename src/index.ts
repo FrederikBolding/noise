@@ -1,5 +1,12 @@
+import { establishConnection } from "./noise.ts";
+import { createMockTransports } from "./transport/MockTransport.ts";
+
 async function main() {
-  console.log("Hello world!");
+  const { a, b } = createMockTransports();
+  await Promise.all([
+    establishConnection(a, true),
+    establishConnection(b, false),
+  ]);
 }
 
 main().catch(console.error);
