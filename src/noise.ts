@@ -35,17 +35,19 @@ export async function establishConnection(
 }
 
 async function runHandshake(transport: Transport, initiator: boolean) {
-  const handshake = new HandshakeState();
-
   const prologue = new Uint8Array();
 
   const staticKeyPair = await generateKeyPair();
 
-  await handshake.initialize(initiator, prologue, staticKeyPair);
+  const handshake = await HandshakeState.initialize(
+    initiator,
+    prologue,
+    staticKeyPair,
+  );
 
   let writeTurn = initiator;
 
-  while (true) {
+  while (!handshake.isFinished()) {
     if (writeTurn) {
       const message = await handshake.writeMessage(new Uint8Array());
 
@@ -56,17 +58,11 @@ async function runHandshake(transport: Transport, initiator: boolean) {
       await transport.write(message);
     } else {
       const received = await transport.read();
-      const message = await handshake.readMessage(received);
-
-      if (!(message instanceof Uint8Array)) {
-        return message;
-      }
-    }
-
-    if (handshake.isFinished()) {
-      return handshake.split();
+      await handshake.readMessage(received);
     }
 
     writeTurn = !writeTurn;
   }
+
+  return handshake.split();
 }

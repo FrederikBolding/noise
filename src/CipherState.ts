@@ -6,6 +6,11 @@ export class CipherState {
 
   #nonce: bigint;
 
+  constructor(key: Uint8Array<ArrayBuffer>) {
+    this.#key = key;
+    this.#nonce = 0n;
+  }
+
   initialize(key: Uint8Array<ArrayBuffer>) {
     this.#key = key;
     this.#nonce = 0n;
@@ -20,7 +25,7 @@ export class CipherState {
     plaintext: Uint8Array<ArrayBuffer>,
   ) {
     // According to spec, check if necessary.
-    if (!this.#key) {
+    if (!this.hasKey()) {
       return plaintext;
     }
 
@@ -41,7 +46,7 @@ export class CipherState {
     ciphertext: Uint8Array<ArrayBuffer>,
   ) {
     // According to spec, check if necessary.
-    if (!this.#key) {
+    if (!this.hasKey()) {
       return ciphertext;
     }
 

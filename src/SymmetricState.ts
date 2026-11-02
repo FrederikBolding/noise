@@ -11,16 +11,32 @@ export class SymmetricState {
   #chainingKey: Uint8Array<ArrayBuffer>;
   #hash: Uint8Array<ArrayBuffer>;
 
-  async initialize(protocolName: string) {
+  constructor(
+    cipher: CipherState,
+    chainingKey: Uint8Array<ArrayBuffer>,
+    hash: Uint8Array<ArrayBuffer>,
+  ) {
+    this.#cipher = cipher;
+    this.#chainingKey = chainingKey;
+    this.#hash = hash;
+  }
+
+  static async initialize(protocolName: string): Promise<SymmetricState> {
+    const hash = await this.initializeHash(protocolName);
+    return new SymmetricState(new CipherState(new Uint8Array()), hash, hash);
+  }
+
+  static async initializeHash(
+    protocolName: string,
+  ): Promise<Uint8Array<ArrayBuffer>> {
     const protocolBytes = stringToBytes(protocolName);
     if (protocolName.length <= HASH_LENGTH) {
-      this.#hash = new Uint8Array(HASH_LENGTH);
-      this.#hash.set(protocolBytes, 0);
+      const hash = new Uint8Array(HASH_LENGTH);
+      hash.set(protocolBytes, 0);
+      return hash;
     } else {
-      this.#hash = await sha256(protocolBytes);
+      return await sha256(protocolBytes);
     }
-    this.#chainingKey = this.#hash;
-    this.#cipher = new CipherState();
   }
 
   hasKey() {
@@ -64,11 +80,6 @@ export class SymmetricState {
   async split() {
     const [k1, k2] = await this.#hkdf(new Uint8Array(), 2);
 
-    const cipher1 = new CipherState();
-    cipher1.initialize(k1);
-    const cipher2 = new CipherState();
-    cipher2.initialize(k2);
-
-    return [cipher1, cipher2];
+    return [new CipherState(k1), new CipherState(k2)];
   }
 }

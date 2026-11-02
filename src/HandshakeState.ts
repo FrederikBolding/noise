@@ -13,26 +13,36 @@ export class HandshakeState {
   #symmetric: SymmetricState;
 
   #pattern: string[][];
-  #initiator;
-  #staticKeyPair: KeyPair;
-  #ephemeralKeyPair: KeyPair;
-  #remoteStaticPublicKey;
-  #remoteEphemeralPublicKey;
+  #initiator: boolean;
+  #staticKeyPair?: KeyPair;
+  #ephemeralKeyPair?: KeyPair;
+  #remoteStaticPublicKey?: Uint8Array<ArrayBuffer>;
+  #remoteEphemeralPublicKey?: Uint8Array<ArrayBuffer>;
 
-  async initialize(
+  constructor(
+    symmetric: SymmetricState,
     initiator: boolean,
-    prologue: Uint8Array<ArrayBuffer> = new Uint8Array(),
     staticKeyPair?: KeyPair,
   ) {
-    this.#symmetric = new SymmetricState();
+    this.#symmetric = symmetric;
     this.#initiator = initiator;
     this.#staticKeyPair = staticKeyPair;
     this.#pattern = [["e"], ["e", "ee", "s", "es"], ["s", "se"]];
+  }
 
+  static async initialize(
+    initiator: boolean,
+    prologue: Uint8Array<ArrayBuffer> = new Uint8Array(),
+    staticKeyPair?: KeyPair,
+  ): Promise<HandshakeState> {
     // TODO: Stop hardcoding protocol
-    await this.#symmetric.initialize("Noise_XX_25519_AESGCM_SHA256");
+    const symmetric = await SymmetricState.initialize(
+      "Noise_XX_25519_AESGCM_SHA256",
+    );
 
-    await this.#symmetric.mixHash(prologue);
+    await symmetric.mixHash(prologue);
+
+    return new HandshakeState(symmetric, initiator, staticKeyPair);
   }
 
   isFinished() {
@@ -64,15 +74,17 @@ export class HandshakeState {
         }
         case "s": {
           buffer.write(
-            await this.#symmetric.encryptAndHash(this.#staticKeyPair.publicKey),
+            await this.#symmetric.encryptAndHash(
+              this.#staticKeyPair!.publicKey,
+            ),
           );
           break;
         }
         case "ee": {
           await this.#symmetric.mixKey(
             await getSharedSecret(
-              this.#ephemeralKeyPair.privateKey,
-              this.#remoteEphemeralPublicKey,
+              this.#ephemeralKeyPair!.privateKey,
+              this.#remoteEphemeralPublicKey!,
             ),
           );
           break;
@@ -81,11 +93,11 @@ export class HandshakeState {
           await this.#symmetric.mixKey(
             await getSharedSecret(
               this.#initiator
-                ? this.#ephemeralKeyPair.privateKey
-                : this.#staticKeyPair.privateKey,
+                ? this.#ephemeralKeyPair!.privateKey
+                : this.#staticKeyPair!.privateKey,
               this.#initiator
-                ? this.#remoteStaticPublicKey
-                : this.#remoteEphemeralPublicKey,
+                ? this.#remoteStaticPublicKey!
+                : this.#remoteEphemeralPublicKey!,
             ),
           );
           break;
@@ -94,11 +106,11 @@ export class HandshakeState {
           await this.#symmetric.mixKey(
             await getSharedSecret(
               this.#initiator
-                ? this.#staticKeyPair.privateKey
-                : this.#ephemeralKeyPair.privateKey,
+                ? this.#staticKeyPair!.privateKey
+                : this.#ephemeralKeyPair!.privateKey,
               this.#initiator
-                ? this.#remoteEphemeralPublicKey
-                : this.#remoteStaticPublicKey,
+                ? this.#remoteEphemeralPublicKey!
+                : this.#remoteStaticPublicKey!,
             ),
           );
           break;
@@ -106,8 +118,8 @@ export class HandshakeState {
         case "ss": {
           await this.#symmetric.mixKey(
             await getSharedSecret(
-              this.#staticKeyPair.privateKey,
-              this.#remoteStaticPublicKey,
+              this.#staticKeyPair!.privateKey,
+              this.#remoteStaticPublicKey!,
             ),
           );
           break;
@@ -151,8 +163,8 @@ export class HandshakeState {
         case "ee": {
           await this.#symmetric.mixKey(
             await getSharedSecret(
-              this.#ephemeralKeyPair.privateKey,
-              this.#remoteEphemeralPublicKey,
+              this.#ephemeralKeyPair!.privateKey,
+              this.#remoteEphemeralPublicKey!,
             ),
           );
           break;
@@ -161,11 +173,11 @@ export class HandshakeState {
           await this.#symmetric.mixKey(
             await getSharedSecret(
               this.#initiator
-                ? this.#ephemeralKeyPair.privateKey
-                : this.#staticKeyPair.privateKey,
+                ? this.#ephemeralKeyPair!.privateKey
+                : this.#staticKeyPair!.privateKey,
               this.#initiator
-                ? this.#remoteStaticPublicKey
-                : this.#remoteEphemeralPublicKey,
+                ? this.#remoteStaticPublicKey!
+                : this.#remoteEphemeralPublicKey!,
             ),
           );
           break;
@@ -174,11 +186,11 @@ export class HandshakeState {
           await this.#symmetric.mixKey(
             await getSharedSecret(
               this.#initiator
-                ? this.#staticKeyPair.privateKey
-                : this.#ephemeralKeyPair.privateKey,
+                ? this.#staticKeyPair!.privateKey
+                : this.#ephemeralKeyPair!.privateKey,
               this.#initiator
-                ? this.#remoteEphemeralPublicKey
-                : this.#remoteStaticPublicKey,
+                ? this.#remoteEphemeralPublicKey!
+                : this.#remoteStaticPublicKey!,
             ),
           );
           break;
@@ -186,8 +198,8 @@ export class HandshakeState {
         case "ss": {
           await this.#symmetric.mixKey(
             await getSharedSecret(
-              this.#staticKeyPair.privateKey,
-              this.#remoteStaticPublicKey,
+              this.#staticKeyPair!.privateKey,
+              this.#remoteStaticPublicKey!,
             ),
           );
           break;
