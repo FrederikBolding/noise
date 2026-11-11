@@ -26,3 +26,13 @@ export function nonceToBytes(int: bigint) {
   new DataView(bytes.buffer).setBigUint64(4, int);
   return bytes;
 }
+
+export function assert(value: unknown, message: string = "Assertion failed") {
+  if (!value) {
+    throw new Error(message);
+  }
+}
+
+export function assertEq(a: unknown, b: unknown) {
+  assert(a === b, `Assertion failed: ${a} !== ${b}`);
+}

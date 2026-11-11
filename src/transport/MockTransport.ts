@@ -1,4 +1,3 @@
-import { Buffer } from "../Buffer.ts";
 import type { Transport } from "./Transport.ts";
 
 export function createMockTransports() {
@@ -17,13 +16,12 @@ export function createMockTransports() {
 }
 
 export class MockTransport implements Transport {
-  #name: string;
   #send;
   queue: Uint8Array<ArrayBuffer>[] = [];
+  sent: Uint8Array<ArrayBuffer>[] = [];
   resolve: (() => Uint8Array<ArrayBuffer>) | null;
 
   constructor(name: string, send: (message: Uint8Array<ArrayBuffer>) => void) {
-    this.#name = name;
     this.#send = send;
   }
 
@@ -43,6 +41,7 @@ export class MockTransport implements Transport {
   }
 
   async write(message: Uint8Array<ArrayBuffer>): Promise<void> {
+    this.sent.push(message);
     return this.#send(message);
   }
 }

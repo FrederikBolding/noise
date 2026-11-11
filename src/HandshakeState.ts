@@ -23,17 +23,20 @@ export class HandshakeState {
     symmetric: SymmetricState,
     initiator: boolean,
     staticKeyPair?: KeyPair,
+    ephemeralKeyPair?: KeyPair,
   ) {
     this.#symmetric = symmetric;
     this.#initiator = initiator;
     this.#staticKeyPair = staticKeyPair;
+    this.#ephemeralKeyPair = ephemeralKeyPair;
     this.#pattern = [["e"], ["e", "ee", "s", "es"], ["s", "se"]];
   }
 
   static async initialize(
     initiator: boolean,
     prologue: Uint8Array<ArrayBuffer> = new Uint8Array(),
-    staticKeyPair?: KeyPair,
+    staticKeyPair: KeyPair,
+    ephemeralKeyPair?: KeyPair,
   ): Promise<HandshakeState> {
     // TODO: Stop hardcoding protocol
     const symmetric = await SymmetricState.initialize(
@@ -42,11 +45,20 @@ export class HandshakeState {
 
     await symmetric.mixHash(prologue);
 
-    return new HandshakeState(symmetric, initiator, staticKeyPair);
+    return new HandshakeState(
+      symmetric,
+      initiator,
+      staticKeyPair,
+      ephemeralKeyPair ?? (await generateKeyPair()),
+    );
   }
 
   isFinished() {
     return this.#pattern.length === 0;
+  }
+
+  get hash() {
+    return this.#symmetric.hash;
   }
 
   async split() {
@@ -66,8 +78,8 @@ export class HandshakeState {
     for (const token of tokens) {
       switch (token) {
         case "e": {
-          this.#ephemeralKeyPair = await generateKeyPair();
-          const publicKey = this.#ephemeralKeyPair.publicKey;
+          // this.#ephemeralKeyPair = await generateKeyPair();
+          const publicKey = this.#ephemeralKeyPair!.publicKey;
           await this.#symmetric.mixHash(publicKey);
           buffer.write(publicKey);
           break;

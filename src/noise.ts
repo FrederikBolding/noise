@@ -1,17 +1,28 @@
 import type { CipherState } from "./CipherState.ts";
 import { HandshakeState } from "./HandshakeState.ts";
-import { generateKeyPair } from "./primitives/x25519.ts";
+import { generateKeyPair, type KeyPair } from "./primitives/x25519.ts";
 import type { Transport } from "./transport/Transport.ts";
 
 export class Connection {
+  #handshakeHash: Uint8Array<ArrayBuffer>;
   #transport: Transport;
   #tx: CipherState;
   #rx: CipherState;
 
-  constructor(transport: Transport, tx: CipherState, rx: CipherState) {
+  constructor(
+    transport: Transport,
+    handshakeHash: Uint8Array<ArrayBuffer>,
+    tx: CipherState,
+    rx: CipherState,
+  ) {
+    this.#handshakeHash = handshakeHash;
     this.#transport = transport;
     this.#tx = tx;
     this.#rx = rx;
+  }
+
+  get handshakeHash() {
+    return this.#handshakeHash;
   }
 
   async write(message: Uint8Array<ArrayBuffer>) {
@@ -25,34 +36,49 @@ export class Connection {
   }
 }
 
-export async function establishConnection(
-  transport: Transport,
-  initiator: boolean,
-) {
-  const [tx, rx] = await runHandshake(transport, initiator);
+export type ConnectionOptions = {
+  transport: Transport;
+  initiator: boolean;
+  prologue?: Uint8Array<ArrayBuffer>;
+  staticKeyPair?: KeyPair;
+  ephemeralKeyPair?: KeyPair;
+  handshakePayloads?: Uint8Array<ArrayBuffer>[];
+};
 
-  return new Connection(transport, tx, rx);
+export async function establishConnection(options: ConnectionOptions) {
+  const { tx, rx, hash } = await runHandshake(options);
+
+  const { transport } = options;
+
+  return new Connection(transport, hash, tx, rx);
 }
 
-async function runHandshake(transport: Transport, initiator: boolean) {
-  const prologue = new Uint8Array();
-
-  const staticKeyPair = await generateKeyPair();
-
+async function runHandshake({
+  transport,
+  initiator,
+  prologue = new Uint8Array(),
+  staticKeyPair,
+  ephemeralKeyPair,
+  handshakePayloads,
+}: ConnectionOptions) {
   const handshake = await HandshakeState.initialize(
     initiator,
     prologue,
-    staticKeyPair,
+    staticKeyPair ?? (await generateKeyPair()),
+    ephemeralKeyPair,
   );
 
   let writeTurn = initiator;
+  let writeIndex = 0;
 
   while (!handshake.isFinished()) {
     if (writeTurn) {
-      const message = await handshake.writeMessage(new Uint8Array());
+      const message = await handshake.writeMessage(
+        handshakePayloads?.[writeIndex++] ?? new Uint8Array(),
+      );
 
       if (!(message instanceof Uint8Array)) {
-        return message;
+        break;
       }
 
       await transport.write(message);
@@ -64,5 +90,7 @@ async function runHandshake(transport: Transport, initiator: boolean) {
     writeTurn = !writeTurn;
   }
 
-  return handshake.split();
+  const [tx, rx] = await handshake.split();
+
+  return { tx, rx, hash: handshake.hash };
 }

@@ -43,6 +43,10 @@ export class SymmetricState {
     return this.#cipher.hasKey();
   }
 
+  get hash() {
+    return this.#hash;
+  }
+
   async #hkdf(ikm: Uint8Array<ArrayBuffer>, outputs: number) {
     const result = await hkdf(
       ikm,

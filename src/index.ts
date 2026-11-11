@@ -5,8 +5,8 @@ import { stringToBytes, bytesToString } from "./util.ts";
 async function main() {
   const { a, b } = createMockTransports();
   const [connectionA, connectionB] = await Promise.all([
-    establishConnection(a, true),
-    establishConnection(b, false),
+    establishConnection({ transport: a, initiator: true }),
+    establishConnection({ transport: b, initiator: false }),
   ]);
 
   await connectionA.write(stringToBytes("Ping!"));
